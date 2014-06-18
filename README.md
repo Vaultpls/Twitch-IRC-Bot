@@ -2,7 +2,7 @@ This little project was created in Go.  It originally was from someone else but 
 
 How to use:
 git clone https://github.com/Vaultpls/Twitch-IRC-Bot
-or Download ZIP -> On the right sidebad
+or Download ZIP -> On the right sidebar
 
 Create twitch_pass and insert the oauth from
 http://twitchapps.com/tmi/
