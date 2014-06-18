@@ -111,7 +111,7 @@ func main() {
 	fmt.Fprintf(conn, "PASS %s\r\n", pass)
 	fmt.Fprintf(conn, "NICK %s\r\n", ircbot.nick)
 	fmt.Fprintf(conn, "JOIN %s\r\n", ircbot.channel)
-	fmt.Println("Inserted credentials...\n")
+	fmt.Printf("Inserted information to server...\n")
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
