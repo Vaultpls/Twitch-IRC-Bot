@@ -17,7 +17,6 @@ type Bot struct {
 	server        string
 	port          string
 	nick          string
-	user          string
 	channel       string
 	pread, pwrite chan string
 	conn          net.Conn
@@ -26,10 +25,9 @@ type Bot struct {
 func NewBot() *Bot {
 	return &Bot{server: "irc.twitch.tv",
 		port:    "6667",
-		nick:    "quanticbot",
-		channel: "#vaultpls",
-		conn:    nil,
-		user:    "quanticbot"}
+		nick:    "quanticbot", //Change to your Twitch username
+		channel: "#vaultpls", //Change to your channel
+		conn:    nil}
 }
 func (bot *Bot) Connect() (conn net.Conn, err error) {
 	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
