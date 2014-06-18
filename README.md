@@ -8,3 +8,5 @@ Create twitch_pass and insert the oauth from
 http://twitchapps.com/tmi/
 
 Then either "go run bot.go" or "go build bot.go"
+
+Please add/remove/modify as you please!  :D
