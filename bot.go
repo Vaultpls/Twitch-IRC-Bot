@@ -14,20 +14,27 @@ import (
 )
 
 type Bot struct {
-	server        string
-	port          string
-	nick          string
-	channel       string
-	pread, pwrite chan string
-	conn          net.Conn
+	server		string
+	port		string
+	nick		string
+	channel		string
+	autoMSG1	string
+	autoMSG2	string
+	autoMSG2Count	int
+	conn		net.Conn
 }
 
 func NewBot() *Bot {
-	return &Bot{server: "irc.twitch.tv",
-		port:    "6667",
-		nick:    "quanticbot", //Change to your Twitch username
-		channel: "#vaultpls", //Change to your channel
-		conn:    nil}
+	return &Bot{
+		server:		"irc.twitch.tv",
+		port:		"6667",
+		nick:		"quanticbot", //Change to your Twitch username
+		channel:	"#vaultpls", //Change to your channel
+		autoMSG1:	"I am a timed auto-message!",
+		autoMSG2:	"I am a line counting auto-message!",
+		autoMSG2Count:	50,
+		conn:		nil, //Don't change this
+	}
 }
 func (bot *Bot) Connect() (conn net.Conn, err error) {
 	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
@@ -59,43 +66,44 @@ func webTitle(website string) string {
 TODO: Add more fun and interesting commands into
 the Command Interpreter.
 */
-func CmdInterpreter(conn net.Conn, channel string, username string, usermessage string) {
+func (bot *Bot) CmdInterpreter(username string, usermessage string) {
 	message := strings.ToLower(usermessage)
 	if strings.HasPrefix(message, "!hi") {
-		Message(conn, channel, "Hi there!")
+		bot.Message("Hi there!")
 	} else if strings.HasPrefix(message, "!tredo") {
-		Message(conn, channel, "\"can't have a good night without some cock\" -Tredo 2013")
+		bot.Message("\"can't have a good night without some cock\" -Tredo 2013")
 	} else if strings.HasPrefix(message, "http://") {
-		Message(conn, channel, "^ " + webTitle(usermessage))
+		bot.Message("^ " + webTitle(usermessage))
 	} else if strings.HasPrefix(message, "https://") {
-		Message(conn, channel, "^ " + webTitle(usermessage))
+		bot.Message("^ " + webTitle(usermessage))
 	}
 }
 
-func Message(conn net.Conn, channel string, message string) {
+func (bot *Bot) Message(message string) {
 	fmt.Printf("Bot: " + message + "\n")
-	fmt.Fprintf(conn, "PRIVMSG "+channel+" :"+message+"\r\n")
+	fmt.Fprintf(bot.conn, "PRIVMSG "+ bot.channel +" :"+message+"\r\n")
 }
 
-func AutoMessage(conn net.Conn, channel string) {
+func (bot *Bot) AutoMessage() {
 	for {
 		time.Sleep(10 * time.Minute)
-		Message(conn, channel, "Hi this is a automessage.  Please change me, senpai.")
+		bot.Message(bot.autoMSG1)
 	}
 }
 
-func ConsoleInput(conn net.Conn, channel string) {
+func (bot *Bot) ConsoleInput() {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		text, _ := reader.ReadString('\n')
 		if text != "" {
-			Message(conn, channel, text)
+			bot.Message(text)
 		}
 	}
 }
 
 func main() {
 	//INIT
+	fmt.Printf("Twitch IRC Bot made in Go!\n")
 	ircbot := NewBot()
 	conn, _ := ircbot.Connect()
 	messagesCount := 0
@@ -104,18 +112,17 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	fmt.Println(string(pass))
-	go AutoMessage(conn, ircbot.channel)
-	fmt.Printf("Initialized auto messager...\n")
+	go ircbot.AutoMessage()
 	fmt.Fprintf(conn, "USER %s 8 * :%s\r\n", ircbot.nick, ircbot.nick)
 	fmt.Fprintf(conn, "PASS %s\r\n", pass)
 	fmt.Fprintf(conn, "NICK %s\r\n", ircbot.nick)
 	fmt.Fprintf(conn, "JOIN %s\r\n", ircbot.channel)
 	fmt.Printf("Inserted information to server...\n")
+	fmt.Printf("If you don't see the stream chat it probably means the Twitch oAuth password is wrong\n")
 	defer conn.Close()
 	reader := bufio.NewReader(conn)
 	tp := textproto.NewReader(reader)
-	go ConsoleInput(conn, ircbot.channel)
+	go ircbot.ConsoleInput()
 	for {
 		line, err := tp.ReadLine()
 		if err != nil {
@@ -125,15 +132,15 @@ func main() {
 			pongdata := strings.Split(line, "PING ")
 			fmt.Fprintf(conn, "PONG %s\r\n", pongdata[1])
 		} else if strings.Contains(line, ".tmi.twitch.tv PRIVMSG "+ircbot.channel) {
-			messagesCount = messagesCount + 1
-			if messagesCount == 50 {
-				Message(conn, ircbot.channel, "Welcome to Vaults stream!  Please take a break from your usual life and watch.  You'd be surprised how much retardation goes on in this stream.")
+			messagesCount++
+			if messagesCount == ircbot.autoMSG2Count {
+				ircbot.Message(ircbot.autoMSG2)
 			}
 			userdata := strings.Split(line, ".tmi.twitch.tv PRIVMSG "+ircbot.channel)
 			username := strings.Split(userdata[0], "@")
 			usermessage := strings.Replace(userdata[1], " :", "", 1)
 			fmt.Printf(username[1] + ": " + usermessage + "\n") //TODO: Put this in a command interpretter
-			go CmdInterpreter(conn, ircbot.channel, username[1], usermessage)
+			go ircbot.CmdInterpreter(username[1], usermessage)
 
 		} else if strings.Contains(line, ".tmi.twitch.tv JOIN "+ircbot.channel) {
 			userjoindata := strings.Split(line, ".tmi.twitch.tv JOIN "+ircbot.channel)
