@@ -5,7 +5,7 @@ Created in Go!
 Original: https://stackoverflow.com/questions/13342128/simple-golang-irc-bot-keeps-timing-out
 
 <h2>Features:</h2>
-** Auto-messenger** - Messages every (x) minutes and every (x) lines
+**Auto-messenger** - Messages every (x) minutes and every (x) lines
 
 **Interpretation of Commands** - Self explanatory "!hi" = "Hi there!"
 
