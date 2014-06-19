@@ -19,7 +19,7 @@ Original: https://stackoverflow.com/questions/13342128/simple-golang-irc-bot-kee
 It just seemed a little dirty using a IRC Library at the moment.
 
 <h4>How to use</h4>
-'''
+```
 git clone https://github.com/Vaultpls/Twitch-IRC-Bot
 or Download ZIP -> On the right sidebar
 
@@ -27,6 +27,6 @@ Create twitch_pass and insert the oauth from
 http://twitchapps.com/tmi/
 
 Then either "go run bot.go" or "go build bot.go"
-'''
+```
 
 Please add/remove/modify as you please!  :D
