@@ -18,7 +18,7 @@ Original: https://stackoverflow.com/questions/13342128/simple-golang-irc-bot-kee
 <h3>Why not use a IRC Lib instead of making your own?</h3>
 It just seemed a little dirty using a IRC Library at the moment.
 
-<h4>How to use</h4>:
+<h4>How to use</h4>
 '''
 git clone https://github.com/Vaultpls/Twitch-IRC-Bot
 or Download ZIP -> On the right sidebar
