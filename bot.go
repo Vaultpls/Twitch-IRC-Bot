@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"net/http"
 	"io/ioutil"
-	"log"
 	"net"
 	"net/textproto"
 	"os"
@@ -36,14 +35,15 @@ func NewBot() *Bot {
 		conn:		nil, //Don't change this
 	}
 }
-func (bot *Bot) Connect() (conn net.Conn, err error) {
-	conn, err = net.Dial("tcp", bot.server+":"+bot.port)
+func (bot *Bot) Connect() {
+	var err error
+	bot.conn, err = net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
-		log.Fatal("unable to connect to IRC server ", err)
+		fmt.Printf("Unable to connect to Twitch IRC server! Reconnecting in 10 seconds...\n")
+		time.Sleep(10 * time.Second)
+                bot.Connect()
 	}
-	bot.conn = conn
-	log.Printf("Connected to IRC server %s (%s)\n", bot.server, bot.conn.RemoteAddr())
-	return bot.conn, nil
+	fmt.Printf("Connected to IRC server %s (%s)\n", bot.server, bot.conn.RemoteAddr())
 }
 
 func webTitle(website string) string {
@@ -105,7 +105,7 @@ func main() {
 	//INIT
 	fmt.Printf("Twitch IRC Bot made in Go!\n")
 	ircbot := NewBot()
-	conn, _ := ircbot.Connect()
+	ircbot.Connect()
 	messagesCount := 0
 	pass1, err := ioutil.ReadFile("twitch_pass")
 	pass := strings.Replace(string(pass1), "\n", "", 0)
@@ -113,14 +113,14 @@ func main() {
 		panic(err)
 	}
 	go ircbot.AutoMessage()
-	fmt.Fprintf(conn, "USER %s 8 * :%s\r\n", ircbot.nick, ircbot.nick)
-	fmt.Fprintf(conn, "PASS %s\r\n", pass)
-	fmt.Fprintf(conn, "NICK %s\r\n", ircbot.nick)
-	fmt.Fprintf(conn, "JOIN %s\r\n", ircbot.channel)
+	fmt.Fprintf(ircbot.conn, "USER %s 8 * :%s\r\n", ircbot.nick, ircbot.nick)
+	fmt.Fprintf(ircbot.conn, "PASS %s\r\n", pass)
+	fmt.Fprintf(ircbot.conn, "NICK %s\r\n", ircbot.nick)
+	fmt.Fprintf(ircbot.conn, "JOIN %s\r\n", ircbot.channel)
 	fmt.Printf("Inserted information to server...\n")
 	fmt.Printf("If you don't see the stream chat it probably means the Twitch oAuth password is wrong\n")
-	defer conn.Close()
-	reader := bufio.NewReader(conn)
+	defer ircbot.conn.Close()
+	reader := bufio.NewReader(ircbot.conn)
 	tp := textproto.NewReader(reader)
 	go ircbot.ConsoleInput()
 	for {
@@ -130,7 +130,7 @@ func main() {
 		}
 		if strings.Contains(line, "PING") {
 			pongdata := strings.Split(line, "PING ")
-			fmt.Fprintf(conn, "PONG %s\r\n", pongdata[1])
+			fmt.Fprintf(ircbot.conn, "PONG %s\r\n", pongdata[1])
 		} else if strings.Contains(line, ".tmi.twitch.tv PRIVMSG "+ircbot.channel) {
 			messagesCount++
 			if messagesCount == ircbot.autoMSG2Count {
