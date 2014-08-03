@@ -278,8 +278,6 @@ func main() {
 			fmt.Printf(username[1] + ": " + usermessage + "\n")
 			if ircbot.userLastMsg[username[1]] + ircbot.userMaxLastMsg >= time.Now().Unix() {
 				ircbot.timeout(username[1], "spam")
-			} else {
-				fmt.Printf("%i %i \n", ircbot.userLastMsg[username[1]] +  ircbot.userMaxLastMsg , time.Now().Unix())
 			}
 			ircbot.userLastMsg[username[1]] = time.Now().Unix()
 			go ircbot.CmdInterpreter(username[1], usermessage)
@@ -300,8 +298,6 @@ func main() {
 			usermod := strings.Split(line, ":jtv MODE "+ircbot.channel+" -o ")
 			ircbot.mods[usermod[1]] = false
 			fmt.Printf(usermod[1] + " isn't a moderator anymore!\n")
-		} else {
-			fmt.Printf(line + "\n")
 		}
 	}
 
