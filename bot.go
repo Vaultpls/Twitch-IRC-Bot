@@ -24,8 +24,6 @@ type Bot struct {
 	conn		net.Conn
 	quotes		map[string]string
 	mods		map[string]bool
-	lastmsg		int64
-	maxMsgTime	int64
 }
 
 func NewBot() *Bot {
@@ -40,8 +38,6 @@ func NewBot() *Bot {
 		conn:		nil, //Don't change this
 		quotes:		make(map[string]string),
 		mods:		make(map[string]bool),
-		lastmsg:	0,
-		maxMsgTime:	5,
 	}
 }
 
@@ -50,11 +46,9 @@ func (bot *Bot) getQuote() string {
 	if length == 0 {
 		return "No quotes stored!"
 	}
-	randomed := rand.Intn(length)
-	if randomed == 0 {
-		randomed = 1
-	}
+	randomed := randInt(1, length)
 	tempInt := 1
+	fmt.Printf("%i %i", randomed, tempInt)
 	for quote, _ := range bot.quotes {
 		if randomed == tempInt {
 			return quote
@@ -64,30 +58,11 @@ func (bot *Bot) getQuote() string {
 	return "Error!"
 }
 
-func (bot *Bot) writeQuoteDB() {
-	dst, err := os.Create("quotes.txt")
-	defer dst.Close()
-	if err != nil {
-		fmt.Println("Can't write to QuoteDB!")
-		return
+func randInt(min int, max int) int {
+	if max == 1 {
+		return 1
 	}
-	for split1, split2 := range bot.quotes {
-		fmt.Fprintf(dst, split1 + "|" + split2 + "\n")
-	}
-}
-
-func (bot *Bot) readQuoteDB() {
-	quotes, err := ioutil.ReadFile("quotes.txt")
-	if err != nil {
-		fmt.Println("Unable to read QuoteDB")
-		return
-	}
-	split1 := strings.Split(string(quotes), "\n")
-	for _, splitted1 := range split1 {
-		split2 := strings.Split(splitted1, "|")
-		bot.quotes[split2[0]] = split2[1]
-	}
-	
+    return min + rand.Intn(max-min)
 }
 
 func (bot *Bot) Connect() {
@@ -148,7 +123,6 @@ func (bot *Bot) CmdInterpreter(username string, usermessage string) {
 		stringpls := strings.Replace(message, "!addquote ", "", 1)
 		if bot.isMod(username) {
 			bot.quotes[stringpls] = username
-			bot.writeQuoteDB()
 		} else {
 			bot.Message(username + " you are not a mod!")
 		}
@@ -166,13 +140,8 @@ func isWebsite(website string) bool {
 }
 
 func (bot *Bot) Message(message string) {
-	if bot.lastmsg + bot.maxMsgTime <= time.Now().Unix() {
-		fmt.Printf("Bot: " + message + "\n")
-		fmt.Fprintf(bot.conn, "PRIVMSG "+ bot.channel +" :"+message+"\r\n")
-		bot.lastmsg = time.Now().Unix()
-	} else {
-		fmt.Println("Attempted to spam message")
-	}
+	fmt.Printf("Bot: " + message + "\n")
+	fmt.Fprintf(bot.conn, "PRIVMSG "+ bot.channel +" :"+message+"\r\n")
 }
 
 func (bot *Bot) AutoMessage() {
@@ -208,7 +177,6 @@ func main() {
 	if err != nil {
 		panic(err)
 	}
-	ircbot.readQuoteDB()
 	fmt.Fprintf(ircbot.conn, "USER %s 8 * :%s\r\n", ircbot.nick, ircbot.nick)
 	fmt.Fprintf(ircbot.conn, "PASS %s\r\n", pass)
 	fmt.Fprintf(ircbot.conn, "NICK %s\r\n", ircbot.nick)
