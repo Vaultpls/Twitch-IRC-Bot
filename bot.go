@@ -45,7 +45,7 @@ func NewBot() *Bot {
 		lastmsg:	0,
 		maxMsgTime:	5,
 		userLastMsg:make(map[string]int64),
-		userMaxLastMsg:3,
+		userMaxLastMsg:2,
 	}
 }
 
@@ -279,7 +279,7 @@ func main() {
 			if ircbot.userLastMsg[username[1]] + ircbot.userMaxLastMsg >= time.Now().Unix() {
 				ircbot.timeout(username[1], "spam")
 			} else {
-				fmt.Printf("%i %i \n", ircbot.userLastMsg[username[1]], time.Now().Unix())
+				fmt.Printf("%i %i \n", ircbot.userLastMsg[username[1]] +  ircbot.userMaxLastMsg , time.Now().Unix())
 			}
 			ircbot.userLastMsg[username[1]] = time.Now().Unix()
 			go ircbot.CmdInterpreter(username[1], usermessage)
