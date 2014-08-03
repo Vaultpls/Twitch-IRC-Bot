@@ -2,6 +2,7 @@ package main
 
 import (
 	"bufio"
+	"math/rand"
 	"fmt"
 	"net/http"
 	"io/ioutil"
@@ -21,6 +22,8 @@ type Bot struct {
 	autoMSG2	string
 	autoMSG2Count	int
 	conn		net.Conn
+	quotes		map[string]string
+	mods		map[string]bool
 }
 
 func NewBot() *Bot {
@@ -33,15 +36,42 @@ func NewBot() *Bot {
 		autoMSG2:	"I am a line counting auto-message!",
 		autoMSG2Count:	50,
 		conn:		nil, //Don't change this
+		quotes:		make(map[string]string),
+		mods:		make(map[string]bool),
 	}
 }
+
+func (bot *Bot) getQuote() string {
+	length := len(bot.quotes)
+	if length == 0 {
+		return "No quotes stored!"
+	}
+	randomed := randInt(1, length)
+	tempInt := 1
+	fmt.Printf("%i %i", randomed, tempInt)
+	for quote, _ := range bot.quotes {
+		if randomed == tempInt {
+			return quote
+		}
+		tempInt++
+	}
+	return "Error!"
+}
+
+func randInt(min int, max int) int {
+	if max == 1 {
+		return 1
+	}
+    return min + rand.Intn(max-min)
+}
+
 func (bot *Bot) Connect() {
 	var err error
 	bot.conn, err = net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
 		fmt.Printf("Unable to connect to Twitch IRC server! Reconnecting in 10 seconds...\n")
 		time.Sleep(10 * time.Second)
-                bot.Connect()
+        bot.Connect()
 	}
 	fmt.Printf("Connected to IRC server %s (%s)\n", bot.server, bot.conn.RemoteAddr())
 }
@@ -62,21 +92,51 @@ func webTitle(website string) string {
 	}
 }
 
+func (bot *Bot) isMod(username string) bool {
+	if bot.mods[username] == true {
+		return true
+	}
+	return false
+}
+
 /*
 TODO: Add more fun and interesting commands into
 the Command Interpreter.
 */
 func (bot *Bot) CmdInterpreter(username string, usermessage string) {
 	message := strings.ToLower(usermessage)
+	tempstr := strings.Split(message, " ")
+	
+	for _, str := range tempstr {
+		if strings.HasPrefix(str, "https://") || strings.HasPrefix(str, "http://") {
+			bot.Message("^ " + webTitle(str))
+		} else if isWebsite(str) {
+			bot.Message("^ " + webTitle("http://" + str))
+		}
+	}
+	
 	if strings.HasPrefix(message, "!hi") {
 		bot.Message("Hi there!")
-	} else if strings.HasPrefix(message, "!tredo") {
-		bot.Message("\"can't have a good night without some cock\" -Tredo 2013")
-	} else if strings.HasPrefix(message, "http://") {
-		bot.Message("^ " + webTitle(usermessage))
-	} else if strings.HasPrefix(message, "https://") {
-		bot.Message("^ " + webTitle(usermessage))
+	} else if strings.HasPrefix(message, "!quote") {
+		bot.Message(bot.getQuote())
+	} else if strings.HasPrefix(message, "!addquote ") {
+		stringpls := strings.Replace(message, "!addquote ", "", 1)
+		if bot.isMod(username) {
+			bot.quotes[stringpls] = username
+		} else {
+			bot.Message(username + " you are not a mod!")
+		}
 	}
+}
+
+func isWebsite(website string) bool {
+	domains := []string {".com", ".net", ".org", ".info",}
+	for _, domain := range domains {
+		if strings.Contains(website, domain) {
+			return true
+		}
+	}
+	return false
 }
 
 func (bot *Bot) Message(message string) {
@@ -95,6 +155,10 @@ func (bot *Bot) ConsoleInput() {
 	reader := bufio.NewReader(os.Stdin)
 	for {
 		text, _ := reader.ReadString('\n')
+		if text == "/quit" {
+			bot.conn.Close()
+			os.Exit(0)
+		}
 		if text != "" {
 			bot.Message(text)
 		}
@@ -105,14 +169,14 @@ func main() {
 	//INIT
 	fmt.Printf("Twitch IRC Bot made in Go!\n")
 	ircbot := NewBot()
+	go ircbot.AutoMessage()
 	ircbot.Connect()
 	messagesCount := 0
-	pass1, err := ioutil.ReadFile("twitch_pass")
+	pass1, err := ioutil.ReadFile("twitch_pass.txt")
 	pass := strings.Replace(string(pass1), "\n", "", 0)
 	if err != nil {
 		panic(err)
 	}
-	go ircbot.AutoMessage()
 	fmt.Fprintf(ircbot.conn, "USER %s 8 * :%s\r\n", ircbot.nick, ircbot.nick)
 	fmt.Fprintf(ircbot.conn, "PASS %s\r\n", pass)
 	fmt.Fprintf(ircbot.conn, "NICK %s\r\n", ircbot.nick)
@@ -152,9 +216,11 @@ func main() {
 			fmt.Printf(userjoined[1] + " has left!\n")
 		} else if strings.Contains(line, ":jtv MODE "+ircbot.channel+" +o ") {
 			usermod := strings.Split(line, ":jtv MODE "+ircbot.channel+" +o ")
+			ircbot.mods[usermod[1]] = true
 			fmt.Printf(usermod[1] + " is a moderator!\n")
 		} else if strings.Contains(line, ":jtv MODE "+ircbot.channel+" -o ") {
 			usermod := strings.Split(line, ":jtv MODE "+ircbot.channel+" -o ")
+			ircbot.mods[usermod[1]] = false
 			fmt.Printf(usermod[1] + " isn't a moderator anymore!\n")
 		}
 	}
