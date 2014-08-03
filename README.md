@@ -11,9 +11,13 @@ Original: https://stackoverflow.com/questions/13342128/simple-golang-irc-bot-kee
 
 **Notifications** - (x) joined the chatroom! (x) got moderator status! (only in text)
 
-**Website Title fetcher** - (WIP) Someone posted a link and the bot goes and fetches the title of the page so you can know what it is before you even go there!
+**Website Title fetcher** - Someone posted a link and the bot goes and fetches the title of the page so you can know what it is before you even go there!
 
 **Console Input** - Don't feel like going in your browser/IRC client? You can type your input into the program and it comes out if the bot were saying it!
+
+**Quotes!** - Sorting and displaying of your quotes!
+
+**Self Spam Control** - Don't like how your bot spams your channel?  Put a limit for each time he can say something!
 
 <h3>Why not use a IRC Lib instead of making your own?</h3>
 It just seemed a little dirty using a IRC Library at the moment.
