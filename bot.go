@@ -24,8 +24,10 @@ type Bot struct {
 	conn		net.Conn
 	quotes		map[string]string
 	mods		map[string]bool
+	userLastMsg	map[string]int64
 	lastmsg		int64
 	maxMsgTime	int64
+	userMaxLastMsg	int64
 }
 
 func NewBot() *Bot {
@@ -42,6 +44,8 @@ func NewBot() *Bot {
 		mods:		make(map[string]bool),
 		lastmsg:	0,
 		maxMsgTime:	5,
+		userLastMsg:make(map[string]int64),
+		userMaxLastMsg:3,
 	}
 }
 
@@ -118,7 +122,8 @@ func webTitle(website string) string {
 }
 
 func (bot *Bot) isMod(username string) bool {
-	if bot.mods[username] == true {
+	temp := strings.Replace(bot.channel, "#", "", 1)
+	if bot.mods[username] == true || temp == username{
 		return true
 	}
 	return false
@@ -152,6 +157,30 @@ func (bot *Bot) CmdInterpreter(username string, usermessage string) {
 		} else {
 			bot.Message(username + " you are not a mod!")
 		}
+	} else if strings.HasPrefix(message, "!timeout ") {
+		stringpls := strings.Replace(message, "!timeout ", "", 1)
+		temp1 := strings.Split(stringpls, " ")
+		temp2 := strings.Replace(stringpls, temp1[0], "", 1)
+		if temp2 == "" {
+			temp2 = "no reason"
+		}
+		if bot.isMod(username) {
+			bot.timeout(temp1[0], temp2)
+		} else {
+			bot.Message(username + " you are not a mod!")
+		}
+	} else if strings.HasPrefix(message, "!ban ") {
+		stringpls := strings.Replace(message, "!ban ", "", 1)
+		temp1 := strings.Split(stringpls, " ")
+		temp2 := strings.Replace(stringpls, temp1[0], "", 1)
+		if temp2 == "" {
+			temp2 = "no reason"
+		}
+		if bot.isMod(username) {
+			bot.ban(temp1[0], temp2)
+		} else {
+			bot.Message(username + " you are not a mod!")
+		}
 	}
 }
 
@@ -173,6 +202,16 @@ func (bot *Bot) Message(message string) {
 	} else {
 		fmt.Println("Attempted to spam message")
 	}
+}
+
+func (bot *Bot) timeout (username string, reason string) {
+	fmt.Fprintf(bot.conn, "PRIVMSG "+ bot.channel +" :/timeout " + username + "\r\n")
+	bot.Message(username + " was timed out(" + reason +")!")
+}
+
+func (bot *Bot) ban (username string, reason string) {
+	fmt.Fprintf(bot.conn, "PRIVMSG "+ bot.channel +" :/ban " + username + "\r\n")
+	bot.Message(username + " was banned(" + reason +")!")
 }
 
 func (bot *Bot) AutoMessage() {
@@ -200,7 +239,7 @@ func main() {
 	//INIT
 	fmt.Printf("Twitch IRC Bot made in Go!\n")
 	ircbot := NewBot()
-	go ircbot.AutoMessage()
+	go ircbot.ConsoleInput()
 	ircbot.Connect()
 	messagesCount := 0
 	pass1, err := ioutil.ReadFile("twitch_pass.txt")
@@ -216,6 +255,7 @@ func main() {
 	fmt.Printf("Inserted information to server...\n")
 	fmt.Printf("If you don't see the stream chat it probably means the Twitch oAuth password is wrong\n")
 	defer ircbot.conn.Close()
+	go ircbot.AutoMessage()
 	reader := bufio.NewReader(ircbot.conn)
 	tp := textproto.NewReader(reader)
 	go ircbot.ConsoleInput()
@@ -235,7 +275,13 @@ func main() {
 			userdata := strings.Split(line, ".tmi.twitch.tv PRIVMSG "+ircbot.channel)
 			username := strings.Split(userdata[0], "@")
 			usermessage := strings.Replace(userdata[1], " :", "", 1)
-			fmt.Printf(username[1] + ": " + usermessage + "\n") //TODO: Put this in a command interpretter
+			fmt.Printf(username[1] + ": " + usermessage + "\n")
+			if ircbot.userLastMsg[username[1]] + ircbot.userMaxLastMsg >= time.Now().Unix() {
+				ircbot.timeout(username[1], "spam")
+			} else {
+				fmt.Printf("%i %i \n", ircbot.userLastMsg[username[1]], time.Now().Unix())
+			}
+			ircbot.userLastMsg[username[1]] = time.Now().Unix()
 			go ircbot.CmdInterpreter(username[1], usermessage)
 
 		} else if strings.Contains(line, ".tmi.twitch.tv JOIN "+ircbot.channel) {
@@ -254,6 +300,8 @@ func main() {
 			usermod := strings.Split(line, ":jtv MODE "+ircbot.channel+" -o ")
 			ircbot.mods[usermod[1]] = false
 			fmt.Printf(usermod[1] + " isn't a moderator anymore!\n")
+		} else {
+			fmt.Printf(line + "\n")
 		}
 	}
 
