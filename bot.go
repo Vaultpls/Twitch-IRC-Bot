@@ -2,8 +2,9 @@ package main
 
 import (
 	"bufio"
-	"flag"
+	"math/rand"
 	"fmt"
+	"net/http"
 	"io/ioutil"
 	"net"
 	"net/textproto"
@@ -13,68 +14,209 @@ import (
 )
 
 type Bot struct {
-	server         string
-	port           string
-	nick           string
-	channel        string
-	autoMSG1       string
-	autoMSG1Count  int
-	autoMSG2       string
-	autoMSG2Count  int
-	conn           net.Conn
-	quotes         map[string]string
-	mods           map[string]bool
-	userLastMsg    map[string]int64
-	lastmsg        int64
-	maxMsgTime     int64
-	userMaxLastMsg int
+	server		string
+	port		string
+	nick		string
+	channel		string
+	autoMSG1	string
+	autoMSG2	string
+	autoMSG2Count	int
+	conn		net.Conn
+	quotes		map[string]string
+	mods		map[string]bool
+	userLastMsg	map[string]int64
+	lastmsg		int64
+	maxMsgTime	int64
+	userMaxLastMsg	int64
 }
 
 func NewBot() *Bot {
 	return &Bot{
-		server:         "irc.twitch.tv",
-		port:           "6667",
-		nick:           "quanticbot", //Change to your Twitch username
-		channel:        "#vaultpls",  //Change to your channel
-		autoMSG1:       "Please follow if you like the stream!  Type !help to see my commands",
-		autoMSG1Count:  10,
-		autoMSG2:       "Fook yeah.  Follow dis gouy.",
-		autoMSG2Count:  50,
-		conn:           nil, //Don't change this
-		quotes:         make(map[string]string),
-		mods:           make(map[string]bool),
-		lastmsg:        0,
-		maxMsgTime:     5,
-		userLastMsg:    make(map[string]int64),
-		userMaxLastMsg: 2,
+		server:		"irc.twitch.tv",
+		port:		"6667",
+		nick:		"quanticbot", //Change to your Twitch username
+		channel:	"#vaultpls", //Change to your channel
+		autoMSG1:	"I am a timed auto-message!",
+		autoMSG2:	"I am a line counting auto-message!",
+		autoMSG2Count:	50,
+		conn:		nil, //Don't change this
+		quotes:		make(map[string]string),
+		mods:		make(map[string]bool),
+		lastmsg:	0,
+		maxMsgTime:	5,
+		userLastMsg:make(map[string]int64),
+		userMaxLastMsg:2,
 	}
+}
+
+func (bot *Bot) getQuote() string {
+	length := len(bot.quotes)
+	if length == 0 {
+		return "No quotes stored!"
+	}
+	randomed := rand.Intn(length)
+	if randomed == 0 {
+		randomed = 1
+	}
+	tempInt := 1
+	for quote, _ := range bot.quotes {
+		if randomed == tempInt {
+			return quote
+		}
+		tempInt++
+	}
+	return "Error!"
+}
+
+func (bot *Bot) writeQuoteDB() {
+	dst, err := os.Create("quotes.txt")
+	defer dst.Close()
+	if err != nil {
+		fmt.Println("Can't write to QuoteDB!")
+		return
+	}
+	for split1, split2 := range bot.quotes {
+		fmt.Fprintf(dst, split1 + "|" + split2 + "\n")
+	}
+}
+
+func (bot *Bot) readQuoteDB() {
+	quotes, err := ioutil.ReadFile("quotes.txt")
+	if err != nil {
+		fmt.Println("Unable to read QuoteDB")
+		return
+	}
+	split1 := strings.Split(string(quotes), "\n")
+	for _, splitted1 := range split1 {
+		split2 := strings.Split(splitted1, "|")
+		bot.quotes[split2[0]] = split2[1]
+	}
+	
 }
 
 func (bot *Bot) Connect() {
 	var err error
-	fmt.Printf("Attempting to connect to server...\n")
 	bot.conn, err = net.Dial("tcp", bot.server+":"+bot.port)
 	if err != nil {
 		fmt.Printf("Unable to connect to Twitch IRC server! Reconnecting in 10 seconds...\n")
 		time.Sleep(10 * time.Second)
-		bot.Connect()
+        bot.Connect()
 	}
-	fmt.Printf("Connected to IRC server %s\n", bot.server)
+	fmt.Printf("Connected to IRC server %s (%s)\n", bot.server, bot.conn.RemoteAddr())
+}
+
+func webTitle(website string) string {
+	response, err := http.Get(website)
+	if err != nil {
+		return "Error reading website"
+	} else {
+		defer response.Body.Close()
+		contents, err := ioutil.ReadAll(response.Body)
+		if err != nil {
+			return "Error reading website"
+		}
+	derp := strings.Split(string(contents), "<title>")
+	derpz := strings.Split(derp[1], "</title>")
+	return derpz[0]
+	}
+}
+
+func (bot *Bot) isMod(username string) bool {
+	temp := strings.Replace(bot.channel, "#", "", 1)
+	if bot.mods[username] == true || temp == username{
+		return true
+	}
+	return false
+}
+
+/*
+TODO: Add more fun and interesting commands into
+the Command Interpreter.
+*/
+func (bot *Bot) CmdInterpreter(username string, usermessage string) {
+	message := strings.ToLower(usermessage)
+	tempstr := strings.Split(message, " ")
+	
+	for _, str := range tempstr {
+		if strings.HasPrefix(str, "https://") || strings.HasPrefix(str, "http://") {
+			bot.Message("^ " + webTitle(str))
+		} else if isWebsite(str) {
+			bot.Message("^ " + webTitle("http://" + str))
+		}
+	}
+	
+	if strings.HasPrefix(message, "!help") {
+		bot.Message("For help on the bot please go to http://commandanddemand.com/bot.html")
+	} else if strings.HasPrefix(message, "!quote") {
+		bot.Message(bot.getQuote())
+	} else if strings.HasPrefix(message, "!addquote ") {
+		stringpls := strings.Replace(message, "!addquote ", "", 1)
+		if bot.isMod(username) {
+			bot.quotes[stringpls] = username
+			bot.writeQuoteDB()
+		} else {
+			bot.Message(username + " you are not a mod!")
+		}
+	} else if strings.HasPrefix(message, "!timeout ") {
+		stringpls := strings.Replace(message, "!timeout ", "", 1)
+		temp1 := strings.Split(stringpls, " ")
+		temp2 := strings.Replace(stringpls, temp1[0], "", 1)
+		if temp2 == "" {
+			temp2 = "no reason"
+		}
+		if bot.isMod(username) {
+			bot.timeout(temp1[0], temp2)
+		} else {
+			bot.Message(username + " you are not a mod!")
+		}
+	} else if strings.HasPrefix(message, "!ban ") {
+		stringpls := strings.Replace(message, "!ban ", "", 1)
+		temp1 := strings.Split(stringpls, " ")
+		temp2 := strings.Replace(stringpls, temp1[0], "", 1)
+		if temp2 == "" {
+			temp2 = "no reason"
+		}
+		if bot.isMod(username) {
+			bot.ban(temp1[0], temp2)
+		} else {
+			bot.Message(username + " you are not a mod!")
+		}
+	}
+}
+
+func isWebsite(website string) bool {
+	domains := []string {".com", ".net", ".org", ".info",}
+	for _, domain := range domains {
+		if strings.Contains(website, domain) {
+			return true
+		}
+	}
+	return false
 }
 
 func (bot *Bot) Message(message string) {
-	if bot.lastmsg+bot.maxMsgTime <= time.Now().Unix() {
+	if bot.lastmsg + bot.maxMsgTime <= time.Now().Unix() {
 		fmt.Printf("Bot: " + message + "\n")
-		fmt.Fprintf(bot.conn, "PRIVMSG "+bot.channel+" :"+message+"\r\n")
+		fmt.Fprintf(bot.conn, "PRIVMSG "+ bot.channel +" :"+message+"\r\n")
 		bot.lastmsg = time.Now().Unix()
 	} else {
 		fmt.Println("Attempted to spam message")
 	}
 }
 
+func (bot *Bot) timeout (username string, reason string) {
+	fmt.Fprintf(bot.conn, "PRIVMSG "+ bot.channel +" :/timeout " + username + "\r\n")
+	bot.Message(username + " was timed out(" + reason +")!")
+}
+
+func (bot *Bot) ban (username string, reason string) {
+	fmt.Fprintf(bot.conn, "PRIVMSG "+ bot.channel +" :/ban " + username + "\r\n")
+	bot.Message(username + " was banned(" + reason +")!")
+}
+
 func (bot *Bot) AutoMessage() {
 	for {
-		time.Sleep(time.Duration(bot.autoMSG1Count) * time.Minute)
+		time.Sleep(10 * time.Minute)
 		bot.Message(bot.autoMSG1)
 	}
 }
@@ -94,47 +236,24 @@ func (bot *Bot) ConsoleInput() {
 }
 
 func main() {
-	channel := flag.String("channel", "vaultpls", "Sets the channel for the bot to go into.")
-	nick := flag.String("nickname", "quanticbot", "The username of the bot.")
-	autoMSG1 := flag.String("timedmsg", "Welcome!  If you enjoy my stream, please follow!", "Set the automatic timed message.")
-	autoMSG1Count := flag.Int("timedmsgcount", 10, "Set how often the timed message gets displayed.")
-	autoMSG2 := flag.String("linemsg", "Follow me if you really enjoy the stream!  Thank you all!", "Set the automatic line message")
-	autoMSG2Count := flag.Int("linemsgcount", 50, "Set the amount of lines until the line message gets displayed!")
-	userMaxLastMsg := flag.Int("spamtime", 1, "Set a minimum time until the user can talk again(Gets timed out if talks before that).")
-	flag.Parse()
-	fmt.Printf("Twitch IRC Bot made in Go! https://github.com/Vaultpls/Twitch-IRC-Bot\n")
-
+	//INIT
+	fmt.Printf("Twitch IRC Bot made in Go!\n")
 	ircbot := NewBot()
 	go ircbot.ConsoleInput()
 	ircbot.Connect()
 	messagesCount := 0
-
 	pass1, err := ioutil.ReadFile("twitch_pass.txt")
 	pass := strings.Replace(string(pass1), "\n", "", 0)
 	if err != nil {
-		fmt.Println("Error reading from twitch_pass.txt.  Maybe it isn't created?")
-		os.Exit(1)
+		panic(err)
 	}
-
-	//Prep everything
-	if !ircbot.readSettingsDB(*channel) {
-		ircbot.nick = *nick
-		ircbot.channel = "#" + *channel
-		ircbot.autoMSG1 = *autoMSG1
-		ircbot.autoMSG1Count = *autoMSG1Count
-		ircbot.autoMSG2 = *autoMSG2
-		ircbot.autoMSG2Count = *autoMSG2Count
-		ircbot.userMaxLastMsg = *userMaxLastMsg
-		ircbot.writeSettingsDB()
-	}
-	//
+	ircbot.readQuoteDB()
 	fmt.Fprintf(ircbot.conn, "USER %s 8 * :%s\r\n", ircbot.nick, ircbot.nick)
 	fmt.Fprintf(ircbot.conn, "PASS %s\r\n", pass)
 	fmt.Fprintf(ircbot.conn, "NICK %s\r\n", ircbot.nick)
 	fmt.Fprintf(ircbot.conn, "JOIN %s\r\n", ircbot.channel)
 	fmt.Printf("Inserted information to server...\n")
 	fmt.Printf("If you don't see the stream chat it probably means the Twitch oAuth password is wrong\n")
-	fmt.Printf("Channel: " + ircbot.channel + "\n")
 	defer ircbot.conn.Close()
 	go ircbot.AutoMessage()
 	reader := bufio.NewReader(ircbot.conn)
@@ -157,7 +276,7 @@ func main() {
 			username := strings.Split(userdata[0], "@")
 			usermessage := strings.Replace(userdata[1], " :", "", 1)
 			fmt.Printf(username[1] + ": " + usermessage + "\n")
-			if ircbot.userLastMsg[username[1]]+int64(ircbot.userMaxLastMsg) >= time.Now().Unix() {
+			if ircbot.userLastMsg[username[1]] + ircbot.userMaxLastMsg >= time.Now().Unix() {
 				ircbot.timeout(username[1], "spam")
 			}
 			ircbot.userLastMsg[username[1]] = time.Now().Unix()
