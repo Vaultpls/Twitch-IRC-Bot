@@ -3,6 +3,7 @@ package main
 
 import (
 	"fmt"
+	"github.com/shkh/lastfm-go/lastfm"
 	"io/ioutil"
 	"net/http"
 	"strings"
@@ -56,6 +57,14 @@ func (bot *Bot) CmdInterpreter(username string, usermessage string) {
 		} else {
 			bot.Message(username + " you are not a mod!")
 		}
+	} else if message == "!song" {
+		api := lastfm.New("e6563970017df6d5966edfa836e12835", "dcc462ffd8a371fee5a5b49c248a2371")
+		temp, _ := api.User.GetRecentTracks(lastfm.P{"user": bot.lastfm})
+		var inserthere string
+		if temp.Tracks[0].Date.Date != "" {
+			inserthere = ". It was played on: " + temp.Tracks[0].Date.Date
+		}
+		bot.Message("Song: " + temp.Tracks[0].Artist.Name + " - " + temp.Tracks[0].Name + inserthere)
 	}
 }
 

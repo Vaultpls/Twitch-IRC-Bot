@@ -80,6 +80,8 @@ func (bot *Bot) readSettingsDB(channel string) bool {
 		} else if split2[0] == "userspamcount" {
 			temp, _ := strconv.Atoi(split2[1])
 			bot.userMaxLastMsg = temp
+		} else if split2[0] == "lastfm" {
+			bot.lastfm = split2[1]
 		}
 
 	}
@@ -99,4 +101,5 @@ func (bot *Bot) writeSettingsDB() {
 	fmt.Fprintf(dst, "timemsgminutes|"+strconv.Itoa(bot.autoMSG1Count)+"\n")
 	fmt.Fprintf(dst, "linemsgcount|"+strconv.Itoa(bot.autoMSG2Count)+"\n")
 	fmt.Fprintf(dst, "userspamcount|"+strconv.Itoa(bot.userMaxLastMsg)+"\n")
+	fmt.Fprintf(dst, "lastfm|"+bot.lastfm+"\n")
 }
