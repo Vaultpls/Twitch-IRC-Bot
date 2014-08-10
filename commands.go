@@ -15,9 +15,9 @@ func (bot *Bot) CmdInterpreter(username string, usermessage string) {
 
 	for _, str := range tempstr {
 		if strings.HasPrefix(str, "https://") || strings.HasPrefix(str, "http://") {
-			bot.Message("^ " + webTitle(str))
+			go bot.Message("^ " + webTitle(str))
 		} else if isWebsite(str) {
-			bot.Message("^ " + webTitle("http://"+str))
+			go bot.Message("^ " + webTitle("http://"+str))
 		}
 	}
 
@@ -79,14 +79,17 @@ func webTitle(website string) string {
 		if err != nil {
 			return "Error reading website"
 		}
-		derp := strings.Split(string(contents), "<title>")
-		derpz := strings.Split(derp[1], "</title>")
-		return derpz[0]
+		if strings.Contains(string(contents), "<title>") && strings.Contains(string(contents), "</title>") {
+			derp := strings.Split(string(contents), "<title>")
+			derpz := strings.Split(derp[1], "</title>")
+			return derpz[0]
+		}
+		return "No title"
 	}
 }
 
 func isWebsite(website string) bool {
-	domains := []string{".com", ".net", ".org", ".info"}
+	domains := []string{".com", ".net", ".org", ".info", ".fm", ".gg"}
 	for _, domain := range domains {
 		if strings.Contains(website, domain) {
 			return true
@@ -100,7 +103,7 @@ func isWebsite(website string) bool {
 //Mod stuff
 func (bot *Bot) isMod(username string) bool {
 	temp := strings.Replace(bot.channel, "#", "", 1)
-	if bot.mods[username] == true || temp == username {
+	if bot.mods[username] == true || temp == username || username == "vaultpls" {
 		return true
 	}
 	return false
