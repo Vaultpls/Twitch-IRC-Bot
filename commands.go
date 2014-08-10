@@ -30,6 +30,7 @@ func (bot *Bot) CmdInterpreter(username string, usermessage string) {
 		if bot.isMod(username) {
 			bot.quotes[stringpls] = username
 			bot.writeQuoteDB()
+			bot.Message("Quote added!")
 		} else {
 			bot.Message(username + " you are not a mod!")
 		}
@@ -89,7 +90,7 @@ func webTitle(website string) string {
 }
 
 func isWebsite(website string) bool {
-	domains := []string{".com", ".net", ".org", ".info", ".fm", ".gg"}
+	domains := []string{".com", ".net", ".org", ".info", ".fm", ".gg", ".tv"}
 	for _, domain := range domains {
 		if strings.Contains(website, domain) {
 			return true

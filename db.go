@@ -16,12 +16,9 @@ func (bot *Bot) getQuote() string {
 		return "No quotes stored!"
 	}
 	randomed := rand.Intn(length)
-	if randomed == 0 {
-		randomed = 1
-	}
 	tempInt := 1
 	for quote, _ := range bot.quotes {
-		if randomed == tempInt {
+		if randomed+1 == tempInt {
 			return quote
 		}
 		tempInt++
@@ -49,8 +46,10 @@ func (bot *Bot) readQuoteDB() {
 	}
 	split1 := strings.Split(string(quotes), "\n")
 	for _, splitted1 := range split1 {
-		split2 := strings.Split(splitted1, "|")
-		bot.quotes[split2[0]] = split2[1]
+		if strings.Contains(splitted1, "|") {
+			split2 := strings.Split(splitted1, "|")
+			bot.quotes[split2[0]] = split2[1]
+		}
 	}
 
 }

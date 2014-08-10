@@ -136,6 +136,7 @@ func main() {
 	fmt.Fprintf(ircbot.conn, "PASS %s\r\n", pass)
 	fmt.Fprintf(ircbot.conn, "NICK %s\r\n", ircbot.nick)
 	fmt.Fprintf(ircbot.conn, "JOIN %s\r\n", ircbot.channel)
+	ircbot.readQuoteDB()
 	fmt.Printf("Inserted information to server...\n")
 	fmt.Printf("If you don't see the stream chat it probably means the Twitch oAuth password is wrong\n")
 	fmt.Printf("Channel: " + ircbot.channel + "\n")
