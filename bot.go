@@ -65,6 +65,9 @@ func (bot *Bot) Connect() {
 }
 
 func (bot *Bot) Message(message string) {
+	if message == "" {
+		return
+	}
 	if bot.lastmsg+bot.maxMsgTime <= time.Now().Unix() {
 		fmt.Printf("Bot: " + message + "\n")
 		fmt.Fprintf(bot.conn, "PRIVMSG "+bot.channel+" :"+message+"\r\n")
