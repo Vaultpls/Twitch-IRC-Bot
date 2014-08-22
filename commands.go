@@ -111,11 +111,17 @@ func (bot *Bot) isMod(username string) bool {
 }
 
 func (bot *Bot) timeout(username string, reason string) {
+	if isMod(username) {
+		return
+	}
 	fmt.Fprintf(bot.conn, "PRIVMSG "+bot.channel+" :/timeout "+username+"\r\n")
 	bot.Message(username + " was timed out(" + reason + ")!")
 }
 
 func (bot *Bot) ban(username string, reason string) {
+	if isMod(username) {
+		return
+	}
 	fmt.Fprintf(bot.conn, "PRIVMSG "+bot.channel+" :/ban "+username+"\r\n")
 	bot.Message(username + " was banned(" + reason + ")!")
 }
